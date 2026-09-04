@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Hunter"
+  short_description: "Import GitHub skills with dependency analysis"
+  default_prompt: "Use $skill-hunter to inspect a GitHub repository and prepare a safe dependency-aware skill import plan."
