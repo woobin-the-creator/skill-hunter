@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import errno
 import os
 import re
 import stat
@@ -229,8 +230,11 @@ class RepositoryAnalyzer:
         except RuntimeError:
             self._block(f"circular symlink is not allowed: {relative} -> {target_text}")
             return
-        except OSError:
-            self._block(f"broken symlink is not allowed: {relative} -> {target_text}")
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                self._block(f"circular symlink is not allowed: {relative} -> {target_text}")
+            else:
+                self._block(f"broken symlink is not allowed: {relative} -> {target_text}")
             return
         if not _within(self.root, target):
             self._block(f"repository-external symlink is not allowed: {relative} -> {target_text}")
