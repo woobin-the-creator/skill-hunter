@@ -14,12 +14,12 @@ script를 실행하지 않습니다.
 아래 3줄을 현재 사용 중인 AI coding agent에 그대로 붙여넣으세요.
 
 ```text
-이 가이드를 읽고 skill-hunter를 현재 프로젝트의 Agent Skill로 설치해줘:
-https://github.com/woobin-the-creator/skill-hunter/blob/main/INSTALL.md
-기존 설치는 덮어쓰지 말고, 완료 후 설치 경로·commit SHA·검증 결과를 알려줘.
+임시 디렉터리에 git clone --depth 1 https://github.com/woobin-the-creator/skill-hunter.git 로 저장소를 받아줘.
+clone된 INSTALL.md 지침에 따라 skill-hunter를 현재 프로젝트의 Agent Skill로 설치하되 기존 설치는 덮어쓰지 마.
+완료 후 임시 clone을 정리하고 설치 경로·source commit SHA·검증 결과를 알려줘.
 ```
 
-기본값은 프로젝트 로컬 설치입니다. 모든 프로젝트에서 사용하려면 첫 줄의
+기본값은 프로젝트 로컬 설치입니다. 모든 프로젝트에서 사용하려면 둘째 줄의
 `현재 프로젝트의`를 `글로벌`로 바꾸면 됩니다.
 
 `INSTALL.md`는 상세 원칙을 담은

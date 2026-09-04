@@ -46,6 +46,18 @@ destination을 읽기 전용으로 확인한다. 파일, 디렉터리, symlink �
 ## 4. 신뢰하지 않는 source로 취급
 
 platform에 맞는 임시 디렉터리로 source를 가져오고 정확한 commit SHA를 기록한다.
+`git`을 사용할 수 있으면 destination이 아닌 임시 디렉터리에 shallow clone한다.
+
+```bash
+git clone --depth 1 -- https://github.com/woobin-the-creator/skill-hunter.git \
+  <temporary-directory>/skill-hunter
+git -C <temporary-directory>/skill-hunter rev-parse HEAD
+```
+
+clone이 끝난 뒤 로컬 `INSTALL.md`를 읽고 나머지 절차를 수행한다. Windows 등에서
+symlink가 일반 파일로 materialize되었다면 그 파일에 적힌 상대 target
+`docs/agent-installation.md`를 resolve해 읽는다.
+
 source repository의 다음 항목은 실행하지 않는다.
 
 - `scripts/` 아래 파일
