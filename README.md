@@ -66,55 +66,13 @@ build backend인 `setuptools`와 `wheel`이 사용됩니다.
 기본값은 **현재 프로젝트에만 설치하는 project-local scope**입니다. 모든 프로젝트에서
 사용하려면 프롬프트 첫 문장의 “프로젝트 로컬”을 “글로벌”로 바꾸면 됩니다.
 
+상세 원칙은 저장소 루트의 [INSTALL.md](INSTALL.md) 심볼릭 링크가 가리키는
+[`docs/agent-installation.md`](docs/agent-installation.md)에서 관리합니다.
+
 ```text
-다음 작업을 끝까지 수행해줘: 공식 저장소
-https://github.com/woobin-the-creator/skill-hunter 에서 skill-hunter를 현재 사용 중인
-AI coding agent의 프로젝트 로컬 Agent Skill로 안전하게 설치하고 검증해줘.
-
-설치 원칙:
-1. 먼저 현재 디렉터리와 Git repository root를 확인하고, 실행 중인 agent가 Claude Code,
-   OpenCode, Codex 또는 기타 Agent Skills 호환 agent인지 판단해라.
-2. project-local 설치 경로는 다음 adapter를 사용해라.
-   - Claude Code: <project>/.claude/skills/skill-hunter
-   - OpenCode: <project>/.opencode/skills/skill-hunter
-   - Codex: <project>/.agents/skills/skill-hunter
-   - 기타 호환 agent: 공식 경로가 확인되면 그 경로를 사용하고, 확인할 수 없으면
-     <project>/.agents/skills/skill-hunter를 제안한 뒤 한 번만 질문해라.
-3. destination이 이미 존재하면 절대 덮어쓰거나 삭제하지 마라. 기존 경로가 같은
-   저장소인지, 수정된 파일이 있는지 읽기 전용으로 확인하고 상태를 보고한 뒤 중단해라.
-4. Python 3.9 이상이 있는지 확인해라. gh CLI나 외부 Python runtime package를
-   설치하지 마라. git이 있으면 사용하고, 없으면 GitHub HTTPS archive를 사용해라.
-5. platform에 맞는 임시 디렉터리로 저장소를 가져오고 정확한 commit SHA를 기록해라.
-   source repository의 script, setup.py, install hook, test, package manager command는
-   실행하지 마라. curl | sh 형태도 사용하지 마라.
-6. 설치 artifact에는 실행과 라이선스 고지에 필요한 아래 파일과 디렉터리만 원래
-   상대 구조대로 포함해라.
-   - SKILL.md
-   - LICENSE
-   - agents/openai.yaml
-   - references/
-   - scripts/skill_hunter.py
-   - skill_hunter/
-   README, docs, tests, .git, build artifact는 Agent Skill 실행에 필요하지 않으므로
-   destination에 복사하지 마라.
-7. destination과 같은 부모 아래 임시 staging 경로에 먼저 복사하고, 모든 필수 파일이
-   있는지 확인한 뒤 한 번의 rename으로 destination을 완성해라. source의 symlink는
-   repository 밖을 가리키지 않는지 확인하고, 외부·절대·broken·circular symlink가
-   있으면 설치를 중단해라.
-8. 설치 후 다음을 검증해라.
-   - destination/SKILL.md가 존재한다.
-   - destination/LICENSE가 존재한다.
-   - SKILL.md frontmatter의 name이 skill-hunter다.
-   - python3 destination/scripts/skill_hunter.py --version 결과가
-     skill-hunter 0.1.0 이상이다.
-   - python3 destination/scripts/skill_hunter.py --help가 성공한다.
-9. 현재 agent가 새 skill을 즉시 reload하지 못하면 재시작 또는 reload가 필요하다고
-   알려라.
-10. 마지막에 agent 종류, scope, 설치 경로, source URL, commit SHA, 복사한 파일 수,
-    검증 명령 결과를 요약해라. 임시 디렉터리는 안전하게 정리해라.
-
-권한이 필요한 파일 쓰기나 네트워크 접근은 실제 작업 직전에만 요청하고, 위 범위를
-벗어난 시스템 설정 변경이나 기존 파일 삭제는 하지 마라.
+https://github.com/woobin-the-creator/skill-hunter 의 skill-hunter를 현재 AI coding agent의 프로젝트 로컬 Agent Skill로 설치해줘.
+작업 전 저장소 루트의 INSTALL.md 심볼릭 링크가 가리키는 상세 설치 원칙을 읽고 그대로 따르며, 기존 파일은 덮어쓰거나 삭제하지 마.
+완료 후 agent 종류, 설치 경로, source commit SHA, 검증 결과를 보고해줘.
 ```
 
 글로벌 설치를 원하면 첫 문장을 다음처럼 바꿉니다.
@@ -545,6 +503,7 @@ GitHub Actions는 Python 3.9, 3.12, 3.13에서 compile, 42개 테스트, package
 
 설계와 상세 증거는 다음 문서에 있습니다.
 
+- [`INSTALL.md`](INSTALL.md): AI Agent용 설치 원칙을 가리키는 심볼릭 링크
 - [`docs/design.md`](docs/design.md)
 - [`docs/acceptance.md`](docs/acceptance.md)
 - [`docs/real-world-validation.md`](docs/real-world-validation.md)
