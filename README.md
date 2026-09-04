@@ -1,21 +1,18 @@
 # skill-hunter
 
-Hunt, inspect, and safely import Agent Skills from GitHub — with
-repository-local dependency tracking.
+GitHub 저장소에서 Agent Skill을 찾고, 저장소 내부 의존성까지 분석해 안전하게
+가져오는 dependency-aware importer입니다.
 
-`skill-hunter` is an Agent Skill and a standalone Python CLI. It discovers
-`SKILL.md` files anywhere in a GitHub repository, builds a static dependency
-graph for a selected skill, shows a reviewable install plan, and installs only
-the required repository paths. It does not execute code from the source
-repository during discovery or installation.
+`skill-hunter`는 그 자체로 Agent Skill이면서 독립 실행 가능한 Python CLI입니다.
+저장소 어디에 있든 `SKILL.md`를 찾고, 선택한 skill이 실제로 참조하는 sibling
+skill·공유 파일·script import·symlink target을 dependency graph로 만든 다음,
+설치 전에 검토 가능한 계획을 보여줍니다. 탐색이나 설치 과정에서 원본 저장소의
+script를 실행하지 않습니다.
 
-## Why it exists
+## 왜 필요한가
 
-Copying only the folder that contains `SKILL.md` often produces a broken skill.
-A skill can depend on a sibling skill, a shared template several directories
-above it, a symlink target, or a helper imported by one of its scripts.
-
-`skill-hunter` keeps those repository-local relationships intact:
+Agent Skill은 항상 하나의 폴더 안에서 완결되지 않습니다. `SKILL.md`가 다음과
+같은 저장소 내부 자원에 의존할 수 있습니다.
 
 ```text
 skill-a
@@ -26,73 +23,181 @@ skill-a
 └── templates/report.md
 ```
 
-The fetched repository is analyzed in a temporary directory. The installed
-artifact is a minimal, repository-shaped dependency closure, not a checkout of
-the entire source repository.
+`SKILL.md`가 있는 폴더만 복사하면 이런 상대경로나 import가 깨집니다.
+반대로 저장소 전체를 설치하면 관련 없는 대용량 파일과 실행 코드까지 들어옵니다.
 
-## Features
+`skill-hunter`는 분석에는 임시 저장소 전체를 사용할 수 있지만, 최종 설치에는
+선택한 skill과 실행에 필요한 repository-local dependency closure만 포함합니다.
+원본 기준 상대경로는 그대로 유지합니다.
 
-- Finds `SKILL.md` at any depth, including `skills/`, `.claude/skills/`,
-  `.agents/skills/`, and nested package layouts.
-- Lists skill name, source path, description, dependency metadata,
-  installability, and structural warnings.
-- Resolves explicit and transitive skill dependencies.
-- Follows existing relative paths, safe internal symlinks, and static local
-  imports from Python, Node, and shell scripts.
-- Reports natural-language skill calls as `inferred` or `possible` candidates
-  instead of silently installing every mentioned name.
-- Detects cycles and deduplicates shared nodes.
-- Supports Claude Code, OpenCode, current Codex conventions, a Codex legacy
-  adapter, a portable `.agents` target, and explicit custom destinations.
-- Refuses destination collisions and unsafe symlinks.
-- Records the exact source commit, dependency graph, and SHA-256 file hashes.
-- Uses only the Python standard library at runtime. `git` is preferred but
-  optional; `gh` is never required.
+## 주요 기능
 
-## Requirements
+- `skills/`, `.claude/skills/`, `.agents/skills/`, nested package 등 위치와
+  관계없이 `SKILL.md` 탐색
+- skill 이름, 경로, 설명, frontmatter, dependency metadata, 설치 가능 여부 표시
+- 명시적·재귀적·transitive skill dependency 처리
+- 상대경로 파일과 디렉터리 분석
+- repository 내부 symlink target 확인 및 cycle/escape 차단
+- Python, Node.js, shell의 정적 repository-local dependency 분석
+- 자연어로 호출되는 다른 skill을 `Inferred` 또는 `Possible` 후보로 분류
+- dependency cycle 탐지와 공유 dependency 중복 제거
+- Claude Code, OpenCode, Codex, universal/custom destination adapter
+- 설치 전 `--dry-run`, 충돌 diff 요약, source revision 고정
+- source URL, commit, dependency graph, SHA-256을 provenance로 기록
+- Python 표준 라이브러리 중심 구현
+- runtime에서 `gh` 불필요, `git`이 없어도 public GitHub archive fallback 제공
 
-- Python 3.9 or newer
-- Network access to GitHub for remote sources
-- `git` is recommended. Without it, public GitHub repositories use a bounded
-  HTTPS API/archive fallback.
+## 요구사항
 
-No PyPI runtime package is required.
+- Python 3.9 이상
+- 원격 저장소를 사용할 경우 GitHub 네트워크 접근
+- `git` 권장, 필수는 아님
 
-## Installation
+PyPI runtime dependency는 없습니다. CLI 패키지를 설치할 때만 일반적인 Python
+build backend인 `setuptools`와 `wheel`이 사용됩니다.
 
-### Install as an Agent Skill
+## 설치 가이드
 
-Choose the directory your agent reads. These commands install the repository
-itself as the `skill-hunter` skill.
+### 방법 1: AI Agent에 아래 프롬프트를 그대로 붙여넣기
 
-Claude Code, global:
+가장 간단한 설치 방법입니다. 아래 블록 전체를 Claude Code, OpenCode, Codex CLI
+또는 다른 coding agent에 그대로 복사해 붙여넣으세요.
+
+기본값은 **현재 프로젝트에만 설치하는 project-local scope**입니다. 모든 프로젝트에서
+사용하려면 프롬프트 첫 문장의 “프로젝트 로컬”을 “글로벌”로 바꾸면 됩니다.
+
+```text
+다음 작업을 끝까지 수행해줘: 공식 저장소
+https://github.com/woobin-the-creator/skill-hunter 에서 skill-hunter를 현재 사용 중인
+AI coding agent의 프로젝트 로컬 Agent Skill로 안전하게 설치하고 검증해줘.
+
+설치 원칙:
+1. 먼저 현재 디렉터리와 Git repository root를 확인하고, 실행 중인 agent가 Claude Code,
+   OpenCode, Codex 또는 기타 Agent Skills 호환 agent인지 판단해라.
+2. project-local 설치 경로는 다음 adapter를 사용해라.
+   - Claude Code: <project>/.claude/skills/skill-hunter
+   - OpenCode: <project>/.opencode/skills/skill-hunter
+   - Codex: <project>/.agents/skills/skill-hunter
+   - 기타 호환 agent: 공식 경로가 확인되면 그 경로를 사용하고, 확인할 수 없으면
+     <project>/.agents/skills/skill-hunter를 제안한 뒤 한 번만 질문해라.
+3. destination이 이미 존재하면 절대 덮어쓰거나 삭제하지 마라. 기존 경로가 같은
+   저장소인지, 수정된 파일이 있는지 읽기 전용으로 확인하고 상태를 보고한 뒤 중단해라.
+4. Python 3.9 이상이 있는지 확인해라. gh CLI나 외부 Python runtime package를
+   설치하지 마라. git이 있으면 사용하고, 없으면 GitHub HTTPS archive를 사용해라.
+5. platform에 맞는 임시 디렉터리로 저장소를 가져오고 정확한 commit SHA를 기록해라.
+   source repository의 script, setup.py, install hook, test, package manager command는
+   실행하지 마라. curl | sh 형태도 사용하지 마라.
+6. 설치 artifact에는 실행과 라이선스 고지에 필요한 아래 파일과 디렉터리만 원래
+   상대 구조대로 포함해라.
+   - SKILL.md
+   - LICENSE
+   - agents/openai.yaml
+   - references/
+   - scripts/skill_hunter.py
+   - skill_hunter/
+   README, docs, tests, .git, build artifact는 Agent Skill 실행에 필요하지 않으므로
+   destination에 복사하지 마라.
+7. destination과 같은 부모 아래 임시 staging 경로에 먼저 복사하고, 모든 필수 파일이
+   있는지 확인한 뒤 한 번의 rename으로 destination을 완성해라. source의 symlink는
+   repository 밖을 가리키지 않는지 확인하고, 외부·절대·broken·circular symlink가
+   있으면 설치를 중단해라.
+8. 설치 후 다음을 검증해라.
+   - destination/SKILL.md가 존재한다.
+   - destination/LICENSE가 존재한다.
+   - SKILL.md frontmatter의 name이 skill-hunter다.
+   - python3 destination/scripts/skill_hunter.py --version 결과가
+     skill-hunter 0.1.0 이상이다.
+   - python3 destination/scripts/skill_hunter.py --help가 성공한다.
+9. 현재 agent가 새 skill을 즉시 reload하지 못하면 재시작 또는 reload가 필요하다고
+   알려라.
+10. 마지막에 agent 종류, scope, 설치 경로, source URL, commit SHA, 복사한 파일 수,
+    검증 명령 결과를 요약해라. 임시 디렉터리는 안전하게 정리해라.
+
+권한이 필요한 파일 쓰기나 네트워크 접근은 실제 작업 직전에만 요청하고, 위 범위를
+벗어난 시스템 설정 변경이나 기존 파일 삭제는 하지 마라.
+```
+
+글로벌 설치를 원하면 첫 문장을 다음처럼 바꿉니다.
+
+```text
+... 현재 사용 중인 AI coding agent의 글로벌 Agent Skill로 안전하게 설치하고 검증해줘.
+```
+
+글로벌 adapter는 다음 경로를 사용합니다.
+
+- Claude Code: `~/.claude/skills/skill-hunter`
+- OpenCode: `~/.config/opencode/skills/skill-hunter`
+- Codex: `~/.agents/skills/skill-hunter`
+- Codex legacy 환경: `${CODEX_HOME:-~/.codex}/skills/skill-hunter`
+
+### 방법 2: Agent Skill을 직접 설치
+
+전체 Git checkout을 그대로 두면 이후 `git pull`로 업데이트하기 쉽습니다. 아래 명령은
+대상 경로가 아직 없을 때만 실행하세요.
+
+#### Claude Code
+
+프로젝트 로컬:
 
 ```bash
+mkdir -p .claude/skills
+git clone https://github.com/woobin-the-creator/skill-hunter.git \
+  .claude/skills/skill-hunter
+```
+
+글로벌:
+
+```bash
+mkdir -p ~/.claude/skills
 git clone https://github.com/woobin-the-creator/skill-hunter.git \
   ~/.claude/skills/skill-hunter
 ```
 
-OpenCode, global:
+#### OpenCode
+
+프로젝트 로컬:
 
 ```bash
+mkdir -p .opencode/skills
+git clone https://github.com/woobin-the-creator/skill-hunter.git \
+  .opencode/skills/skill-hunter
+```
+
+글로벌:
+
+```bash
+mkdir -p ~/.config/opencode/skills
 git clone https://github.com/woobin-the-creator/skill-hunter.git \
   ~/.config/opencode/skills/skill-hunter
 ```
 
-Codex, global (current open `.agents` convention):
+#### Codex
+
+프로젝트 로컬:
 
 ```bash
+mkdir -p .agents/skills
+git clone https://github.com/woobin-the-creator/skill-hunter.git \
+  .agents/skills/skill-hunter
+```
+
+글로벌:
+
+```bash
+mkdir -p ~/.agents/skills
 git clone https://github.com/woobin-the-creator/skill-hunter.git \
   ~/.agents/skills/skill-hunter
 ```
 
-For project-local use, replace the destination with
-`.claude/skills/skill-hunter`, `.opencode/skills/skill-hunter`, or
-`.agents/skills/skill-hunter` inside the project.
+설치 후 agent가 자동으로 새 skill을 감지하지 못하면 해당 agent를 재시작하거나 skill
+목록을 reload하세요.
 
-### Install only the CLI
+### 방법 3: CLI만 설치
 
-Run it directly from a checkout:
+Agent Skill 자동 호출이 필요하지 않고 CLI만 사용하려면 격리된 Python 환경 또는
+`pipx`를 권장합니다.
+
+저장소 checkout에서 바로 실행:
 
 ```bash
 git clone https://github.com/woobin-the-creator/skill-hunter.git
@@ -100,16 +205,32 @@ cd skill-hunter
 python3 scripts/skill_hunter.py --help
 ```
 
-Or install the console entrypoint in an isolated environment:
+Python console command 설치:
 
 ```bash
 python3 -m pip install git+https://github.com/woobin-the-creator/skill-hunter.git
 skill-hunter --help
 ```
 
-## Agent usage
+### 설치 확인
 
-Once installed as a skill, users can speak naturally:
+Agent Skill 경로를 직접 설치했다면 `<설치경로>`를 실제 경로로 바꿔 실행합니다.
+
+```bash
+python3 <설치경로>/scripts/skill_hunter.py --version
+python3 <설치경로>/scripts/skill_hunter.py --help
+```
+
+정상 설치 예시:
+
+```text
+skill-hunter 0.1.0
+```
+
+## Agent에서 사용하는 방법
+
+설치 후에는 git 명령이나 skill directory 구조를 알 필요가 없습니다. 다음처럼
+자연어로 요청할 수 있습니다.
 
 ```text
 https://github.com/foo/bar 여기 있는 스킬 보여줘
@@ -117,40 +238,35 @@ https://github.com/foo/bar 여기 있는 스킬 보여줘
 frontend-design skill의 dependency를 분석해줘
 여기 있는 스킬 전부 설치해줘
 skill-a를 프로젝트 로컬에 설치해줘
-skill-a를 Claude Code 글로벌 skill로 설치해줘
+skill-a를 글로벌 skill로 설치해줘
 이 skill이 다른 파일이나 skill에 의존하는지도 확인해줘
 ```
 
-The Agent Skill instructs the host to run a dry-run, review semantic candidates
-and security signals, show the plan, and obtain confirmation before making an
-installation change.
+`skill-hunter` Agent Skill은 실제 설치 전에 dry-run을 실행하고, semantic dependency
+후보와 security signal을 검토하며, 계획을 사용자에게 보여준 다음 승인을 받도록
+지시합니다.
 
-### Claude Code
+### Claude Code 예시
 
 ```text
 /skill-hunter https://github.com/foo/bar 여기 있는 스킬 보여줘
 ```
 
-Claude Code may also invoke the skill automatically when the request matches its
-description.
-
-### OpenCode
-
-Ask OpenCode to use `skill-hunter`, or load it through OpenCode's native skill
-tool and provide the repository URL. The native adapter writes project skills to
-`.opencode/skills` and global skills to `~/.config/opencode/skills`.
-
-### Codex
+### OpenCode 예시
 
 ```text
-$skill-hunter inspect https://github.com/foo/bar and show me its skills
+skill-hunter를 사용해서 https://github.com/foo/bar 의 skill 목록과 dependency를 확인해줘.
 ```
 
-The current Codex adapter uses `.agents/skills` for repository and user scope.
-Use `--target codex-legacy` only when an older setup intentionally reads
-`.codex/skills` or `$CODEX_HOME/skills`.
+### Codex 예시
 
-## CLI usage
+```text
+$skill-hunter https://github.com/foo/bar 에서 frontend-design을 분석하고 설치 계획을 보여줘.
+```
+
+## CLI 사용법
+
+설치된 console command와 repository script는 같은 인터페이스를 제공합니다.
 
 ```text
 skill-hunter inspect SOURCE
@@ -160,30 +276,33 @@ skill-hunter analyze SOURCE --all
 skill-hunter install SOURCE --skill NAME --target TARGET --scope SCOPE --dry-run
 ```
 
-The repository script exposes the same interface:
+repository checkout 또는 Agent Skill 내부에서는 다음처럼 실행합니다.
 
 ```bash
 python3 scripts/skill_hunter.py list https://github.com/foo/bar
 ```
 
-### Discover skills
+### 저장소의 skill 목록 보기
 
 ```bash
 python3 scripts/skill_hunter.py inspect https://github.com/foo/bar
 python3 scripts/skill_hunter.py list https://github.com/foo/bar --json
 ```
 
-`inspect` includes per-skill warnings. `list` is the concise inventory view.
-Both commands are read-only.
+- `list`: 간결한 목록
+- `inspect`: skill별 구조 경고까지 표시
+- `--json`: agent나 다른 도구가 처리할 수 있는 machine-readable 결과
 
-### Analyze one skill
+두 명령 모두 설치 경로를 변경하지 않습니다.
+
+### 특정 skill의 dependency 분석
 
 ```bash
 python3 scripts/skill_hunter.py analyze https://github.com/foo/bar \
   --skill frontend-design
 ```
 
-Example plan fragment:
+출력 예시:
 
 ```text
 Source:      https://github.com/foo/bar
@@ -200,9 +319,9 @@ Scripts (not executed):
   - skills/frontend-design/scripts/render.py
 ```
 
-### Dry-run before installation
+### 설치 전 dry-run
 
-Project-local Claude Code plan:
+Claude Code 프로젝트 로컬:
 
 ```bash
 python3 scripts/skill_hunter.py install https://github.com/foo/bar \
@@ -212,7 +331,7 @@ python3 scripts/skill_hunter.py install https://github.com/foo/bar \
   --dry-run
 ```
 
-Global Codex plan:
+Codex 글로벌:
 
 ```bash
 python3 scripts/skill_hunter.py install https://github.com/foo/bar \
@@ -222,71 +341,97 @@ python3 scripts/skill_hunter.py install https://github.com/foo/bar \
   --dry-run
 ```
 
-Install all valid skills in a repository:
+저장소의 유효한 skill을 모두 선택:
 
 ```bash
 python3 scripts/skill_hunter.py install https://github.com/foo/bar \
-  --all --target opencode --scope project --dry-run
+  --all \
+  --target opencode \
+  --scope project \
+  --dry-run
 ```
 
-After reviewing the exact plan, repeat the same command without `--dry-run` and
-add `--yes`. Non-interactive real installs require `--yes`.
+계획을 검토하고 승인했다면 같은 명령에서 `--dry-run`을 제거하고 `--yes`를
+추가합니다. 비대화형 실제 설치는 `--yes`가 없으면 중단됩니다.
 
-### Semantic dependency choices
+## Dependency 분석 방식
 
-An imperative sentence such as “Use the `frontend-design` skill before this
-task” is reported as `inferred`. It is not installed by default:
+각 dependency edge에는 source, target, 종류, confidence, 근거 문장과 위치가
+기록됩니다.
 
-```bash
-python3 scripts/skill_hunter.py analyze https://github.com/foo/bar \
-  --skill report-builder --include-inferred
+### Confirmed
+
+정적 분석으로 repository-local target이 명확한 dependency입니다. 기본 설치 closure에
+자동으로 포함합니다.
+
+- `requires`, `metadata.requires`와 호환 metadata
+- `skill.json`, `plugin.json`, `manifest.json`의 dependency 선언
+- 실제 존재하는 `./`, `../` 상대경로
+- `scripts/foo.py`, `references/rules.md` 같은 conventional resource 경로
+- repository 내부 symlink target
+- Python repository-local import
+- Node.js 상대 import/require
+- shell `source` 또는 local script 호출
+- 상대경로로 직접 참조한 다른 `SKILL.md`
+
+### Inferred
+
+다른 skill을 사용하라는 자연어 지시가 명확하지만 machine-readable 선언은 아닌
+경우입니다.
+
+```text
+Use the `frontend-design` skill before performing this task.
 ```
 
-Ambiguous examples and comparisons remain `possible`. Including them requires
-the deliberately explicit `--include-possible` flag.
+기본 설치에서는 제외합니다. 근거를 검토한 뒤 실제 dependency가 맞으면
+`--include-inferred`를 사용합니다.
 
-## Agent destination adapters
+### Possible
 
-| Target | Project scope | Global scope |
+예시, 비교, 선택 사항, 부정문처럼 dependency인지 불확실한 언급입니다. 자동으로
+설치하지 않습니다. 사용자가 근거를 확인하고 의도적으로 선택할 때만
+`--include-possible`을 사용합니다.
+
+### 지원 범위 요약
+
+| Dependency 유형 | Confidence | 처리 방식 |
+| --- | --- | --- |
+| Frontmatter/JSON manifest dependency | Confirmed | 재귀적 skill closure |
+| 기존 상대경로 파일·디렉터리 | Confirmed | repository 구조를 유지해 포함 |
+| 내부 symlink | Confirmed | link와 target을 함께 포함 |
+| Python 정적 import | Confirmed | local module을 재귀 분석 |
+| Node.js 정적 import/require | Confirmed | local module을 재귀 분석 |
+| Shell source/local 실행 경로 | Confirmed | script를 재귀 분석 |
+| 명령형 자연어 skill 호출 | Inferred | 검토 후 opt-in |
+| 예시·비교·모호한 skill 언급 | Possible | 기본 제외 |
+
+동일 node는 한 번만 materialize합니다. `foo -> bar -> foo` 같은 cycle은 닫힌
+경로로 보고하되 무한 재귀나 중복 설치를 일으키지 않습니다.
+
+## Agent destination adapter
+
+| Target | 프로젝트 로컬 | 글로벌 |
 | --- | --- | --- |
 | `claude` | `.claude/skills` | `${CLAUDE_CONFIG_DIR:-~/.claude}/skills` |
 | `opencode` | `.opencode/skills` | `${XDG_CONFIG_HOME:-~/.config}/opencode/skills` |
 | `codex` | `.agents/skills` | `~/.agents/skills` |
 | `codex-legacy` | `.codex/skills` | `${CODEX_HOME:-~/.codex}/skills` |
 | `universal` | `.agents/skills` | `${XDG_CONFIG_HOME:-~/.config}/agents/skills` |
-| `custom` | explicit `--destination` | explicit `--destination` |
+| `custom` | 명시적 `--destination` | 명시적 `--destination` |
 
-`--target auto` uses existing configuration markers only when one result is
-unambiguous. It asks for an explicit target rather than guessing when several
-agents are installed.
+`--target auto`는 기존 설정 marker가 정확히 하나일 때만 선택합니다. 여러 agent가
+설치되어 있거나 판단할 수 없으면 추측하지 않고 명시적인 target을 요구합니다.
 
-Path conventions were checked against the
-[Agent Skills specification](https://agentskills.io/specification),
-[Claude Code skills documentation](https://code.claude.com/docs/en/slash-commands),
-[OpenCode skills documentation](https://opencode.ai/docs/skills), and
-[official OpenAI Codex skill documentation](https://developers.openai.com/codex/skills).
+경로 규약은 [Agent Skills specification](https://agentskills.io/specification),
+[Claude Code skills 문서](https://code.claude.com/docs/en/slash-commands),
+[OpenCode skills 문서](https://opencode.ai/docs/skills),
+[OpenAI Codex 공식 문서](https://developers.openai.com/codex/skills)를 기준으로
+검토했습니다.
 
-## Supported dependency detection
+## 설치 구조와 provenance
 
-| Dependency type | Confidence | Behavior |
-| --- | --- | --- |
-| `requires`, `metadata.requires`, JSON manifest variants | Confirmed | Recursive skill closure |
-| Existing `./` or `../` path | Confirmed | File/directory closure |
-| Referenced conventional resource path such as `scripts/x.py` | Confirmed | File/directory closure |
-| Repository-internal symlink target | Confirmed | Link plus target closure |
-| Static Python repository-local import | Confirmed | Module and recursive imports |
-| Static Node relative import/require | Confirmed | Module and recursive imports |
-| Shell `source` or local script invocation | Confirmed | Script and recursive references |
-| Imperative natural-language skill call | Inferred | Review; opt in |
-| Example, comparison, optional, or ambiguous skill mention | Possible | Excluded by default |
-
-The graph records evidence and source location for each edge. Repeated nodes are
-materialized once, and cycles are reported without recursive duplication.
-
-## Installation layout and provenance
-
-For arbitrary relative paths to keep working, the minimal closure is stored with
-its original repository layout:
+skill 밖의 dependency가 있어도 상대경로가 깨지지 않도록 최소 closure를 원래
+repository 구조로 저장합니다.
 
 ```text
 <state>/stores/<source>/<commit>-<closure>/
@@ -297,89 +442,123 @@ its original repository layout:
     └── shared/utils.py
 ```
 
-The selected agent directory gets relative links to the skill roots in that
-store. Project state defaults to `<project>/.skill-hunter`; global state defaults
-to `${XDG_DATA_HOME:-~/.local/share}/skill-hunter`.
+선택한 agent skill directory에는 store 내부 skill root를 가리키는 상대 symlink를
+만듭니다.
 
-`provenance.json` records:
+- Project state: `<project>/.skill-hunter`
+- Global state: `${XDG_DATA_HOME:-~/.local/share}/skill-hunter`
 
-- canonical source URL;
-- exact 40-character Git commit for GitHub sources;
-- requested and transitive skills;
-- dependency edges and confidence;
-- every installed repository-relative path and SHA-256 hash (or symlink target);
-- destination adapter, scope, and installation timestamp.
+`provenance.json`에는 다음 정보가 기록됩니다.
 
-A registry beside the stores makes future `update`, `remove`, `reinstall`, and
-integrity verification possible without guessing ownership.
+- canonical source URL
+- GitHub source의 정확한 40자 commit SHA
+- 사용자가 요청한 skill과 transitive skill 목록
+- confidence와 근거를 포함한 dependency edge
+- 설치된 모든 repository-relative path
+- regular file의 SHA-256 또는 symlink target
+- destination adapter, scope, 설치 시각
 
-## Safety principles
+같은 state root의 `registry.json`은 향후 `update`, `remove`, `reinstall`, integrity
+verification을 구현할 수 있도록 설치 소유권을 기록합니다.
 
-- The source repository is untrusted input.
-- Git acquisition uses a no-checkout clone and materializes exact immutable tree
-  objects without checkout filters, hooks, or `.gitattributes` export exclusions.
-- Repository scripts, install hooks, package managers, and tests are never run.
-- Archive file count, download size, and extracted size are bounded.
-- Absolute paths, path traversal, special files, escaping/broken/circular
-  symlinks, and destination escape are rejected.
-- Existing skills are never overwritten. A collision produces a small diff
-  summary and no mutation.
-- Installation is staged; exposed links and a newly created store are rolled
-  back if the transaction fails.
-- Executable files, hooks, network/process behavior, destructive commands,
-  credential references, and pipe-to-shell patterns are reported before install.
-- Terminal control characters from repository metadata are stripped from human
-  output.
-- A `LOW` risk label is not a security guarantee. Static analysis cannot prove a
-  third-party skill is benign.
+## 안전 원칙
 
-## Known limitations
+GitHub repository의 metadata, 문서, 경로, symlink, script를 모두 신뢰하지 않는
+입력으로 취급합니다.
 
-- Dynamic imports, generated paths, runtime reflection, and language package
-  dependencies are not fully resolvable statically.
-- pip, npm, system packages, and other external dependencies are reported only
-  through visible evidence; they are never installed automatically.
-- Cross-repository skill dependencies are not fetched in the MVP.
-- Git submodules are not initialized automatically.
-- A GitHub `/tree/<ref>/<path>` URL treats the first segment after `tree/` as the
-  ref. Use `--ref` plus a repository-root URL when a branch name contains `/`.
-- General YAML is intentionally unsupported. The parser accepts the safe subset
-  commonly used by Agent Skill frontmatter, including mappings, lists, quoted
-  values, and multiline descriptions.
-- Symlink mode is required for graphs that depend on files outside one skill
-  root. Copy fallback is limited to a self-contained single skill.
-- Windows symlink creation can require Developer Mode or elevated permission.
-- Semantic classification is conservative and deterministic; the host agent or
-  user must review inferred and possible evidence.
+- source script, `setup.py`, install hook, package manager, test를 실행하지 않음
+- Git working-tree checkout 없이 immutable Git tree object를 직접 materialize
+- checkout filter, hook, `.gitattributes` export exclusion의 영향 차단
+- archive download 크기, 파일 수, 압축 해제 크기 제한
+- absolute path, traversal, special file, 외부·broken·circular symlink 차단
+- state directory와 agent destination overlap 차단
+- 기존 skill을 overwrite하지 않고 작은 diff 요약 후 중단
+- 실제 설치 전에 source closure hash를 다시 확인해 TOCTOU 변경 차단
+- staging, atomic rename, 실패 시 생성한 link/store rollback
+- executable, hook, network/process 실행, destructive command, credential reference,
+  `curl | sh` 패턴을 설치 전에 표시
+- repository metadata의 terminal control character 제거
+- 원본 branch 이름이 아니라 분석에 사용한 commit SHA 기록
 
-## Development and tests
+`Risk: LOW`는 신뢰 보증이나 malware 판정이 아닙니다. 정적 분석은 위험 신호를
+줄여 주지만 제3자 skill의 안전성을 증명하지는 못합니다.
 
-The project has no runtime test dependency:
+## 알려진 한계
+
+- dynamic import, runtime reflection, 생성되는 경로는 완전히 해석할 수 없음
+- pip, npm, system package 같은 외부 dependency를 자동 설치하지 않음
+- cross-repository skill dependency는 MVP에서 자동 획득하지 않음
+- Git submodule을 자동 초기화하지 않음
+- 안전한 Agent Skill frontmatter subset만 지원하며 범용 YAML parser는 아님
+- GitHub `/tree/<ref>/<path>` URL에서 `/`가 포함된 branch는 모호할 수 있음
+- skill root 밖 dependency가 있는 graph는 symlink mode가 필요함
+- Windows symlink는 Developer Mode 또는 별도 권한이 필요할 수 있음
+- 자연어 dependency confidence는 보수적 heuristic이므로 agent 또는 사용자 검토가 필요함
+
+branch 이름에 `/`가 있으면 repository root URL과 `--ref`를 함께 사용하세요.
+
+```bash
+python3 scripts/skill_hunter.py analyze https://github.com/foo/bar \
+  --ref feature/my-branch \
+  --skill skill-a
+```
+
+## 개발과 테스트
+
+runtime test dependency 없이 표준 라이브러리 `unittest`를 사용합니다.
 
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m compileall -q skill_hunter scripts
 ```
 
-The suite creates temporary Git repositories and covers the required fixtures:
-independent skills, explicit and transitive dependencies, relative files,
-symlinks, Python/Node/shell imports, cycles, escaping symlinks, collisions,
-natural-language calls, unrelated large content, shared dependency
-deduplication, archive safety, adapters, provenance, and dry-run write
-invariants.
+현재 test suite는 다음을 포함한 42개 사례를 검증합니다.
 
-Design decisions and the release evidence gate are documented in
-[`docs/design.md`](docs/design.md) and
-[`docs/acceptance.md`](docs/acceptance.md).
+- 독립 skill
+- 명시적·transitive dependency
+- 상대경로 파일
+- 내부·외부·절대·circular symlink
+- Python, Node.js, shell dependency
+- dependency cycle과 공유 node deduplication
+- 기존 설치 collision과 sentinel 보존
+- 자연어 `Inferred`/`Possible` 분류
+- unrelated 대용량 directory 제외
+- GitHub archive path traversal 차단
+- project/global agent adapter
+- provenance와 commit SHA
+- dry-run 무변경성
+- 분석 후 source 변경 차단
+- source script 미실행
 
-## Related ecosystem work
+GitHub Actions는 Python 3.9, 3.12, 3.13에서 compile, 42개 테스트, package 설치,
+두 CLI entrypoint smoke test를 실행합니다.
 
-The implementation is clean-room. The design review considered the MIT-licensed
-[Vercel `skills` CLI](https://github.com/vercel-labs/skills) and
-[`junior/skilla`](https://github.com/junior/skilla) for ecosystem conventions,
-but does not copy their source code. `skill-hunter` focuses specifically on
-repository-local dependency graphs and path-preserving minimal imports.
+실제 public repository dry-run 검증:
 
-## License
+- `junior/skilla`: 일반 `skills/<name>` 구조
+- `axross/nakami`: `.claude/skills/<name>` 및 Node.js script 구조
+- `vercel-labs/agent-skills`: bundled rules, multiline YAML, source directory와
+  frontmatter name이 다른 구조
+
+검증 중 외부 저장소 script는 실행하지 않았습니다. `git`과 `gh`가 PATH에 없는
+상태에서도 public GitHub archive fallback을 검증했습니다.
+
+설계와 상세 증거는 다음 문서에 있습니다.
+
+- [`docs/design.md`](docs/design.md)
+- [`docs/acceptance.md`](docs/acceptance.md)
+- [`docs/real-world-validation.md`](docs/real-world-validation.md)
+
+## 관련 생태계
+
+구현은 clean-room 방식입니다. 생태계 규약과 UX를 이해하기 위해 MIT 라이선스의
+[Vercel `skills` CLI](https://github.com/vercel-labs/skills)와
+[`junior/skilla`](https://github.com/junior/skilla)를 검토했지만, 해당 프로젝트의
+source code를 복사하지 않았습니다.
+
+`skill-hunter`는 그중에서도 repository-local dependency graph와 상대경로를 보존하는
+최소 설치 artifact에 초점을 둡니다.
+
+## 라이선스
 
 [MIT](LICENSE)
