@@ -9,6 +9,23 @@ skill·공유 파일·script import·symlink target을 dependency graph로 만�
 설치 전에 검토 가능한 계획을 보여줍니다. 탐색이나 설치 과정에서 원본 저장소의
 script를 실행하지 않습니다.
 
+## 가장 빠른 설치
+
+아래 3줄을 현재 사용 중인 AI coding agent에 그대로 붙여넣으세요.
+
+```text
+이 가이드를 읽고 skill-hunter를 현재 프로젝트의 Agent Skill로 설치해줘:
+https://github.com/woobin-the-creator/skill-hunter/blob/main/INSTALL.md
+기존 설치는 덮어쓰지 말고, 완료 후 설치 경로·commit SHA·검증 결과를 알려줘.
+```
+
+기본값은 프로젝트 로컬 설치입니다. 모든 프로젝트에서 사용하려면 첫 줄의
+`현재 프로젝트의`를 `글로벌`로 바꾸면 됩니다.
+
+`INSTALL.md`는 상세 원칙을 담은
+[`docs/agent-installation.md`](docs/agent-installation.md)를 가리키는 실제 Git
+심볼릭 링크입니다.
+
 ## 왜 필요한가
 
 Agent Skill은 항상 하나의 폴더 안에서 완결되지 않습니다. `SKILL.md`가 다음과
@@ -56,39 +73,11 @@ skill-a
 PyPI runtime dependency는 없습니다. CLI 패키지를 설치할 때만 일반적인 Python
 build backend인 `setuptools`와 `wheel`이 사용됩니다.
 
-## 설치 가이드
+## 직접 설치
 
-### 방법 1: AI Agent에 아래 프롬프트를 그대로 붙여넣기
+AI Agent에 맡기지 않고 직접 설치하려는 경우에만 이 절차를 사용하세요.
 
-가장 간단한 설치 방법입니다. 아래 블록 전체를 Claude Code, OpenCode, Codex CLI
-또는 다른 coding agent에 그대로 복사해 붙여넣으세요.
-
-기본값은 **현재 프로젝트에만 설치하는 project-local scope**입니다. 모든 프로젝트에서
-사용하려면 프롬프트 첫 문장의 “프로젝트 로컬”을 “글로벌”로 바꾸면 됩니다.
-
-상세 원칙은 저장소 루트의 [INSTALL.md](INSTALL.md) 심볼릭 링크가 가리키는
-[`docs/agent-installation.md`](docs/agent-installation.md)에서 관리합니다.
-
-```text
-https://github.com/woobin-the-creator/skill-hunter 의 skill-hunter를 현재 AI coding agent의 프로젝트 로컬 Agent Skill로 설치해줘.
-작업 전 저장소 루트의 INSTALL.md 심볼릭 링크가 가리키는 상세 설치 원칙을 읽고 그대로 따르며, 기존 파일은 덮어쓰거나 삭제하지 마.
-완료 후 agent 종류, 설치 경로, source commit SHA, 검증 결과를 보고해줘.
-```
-
-글로벌 설치를 원하면 첫 문장을 다음처럼 바꿉니다.
-
-```text
-... 현재 사용 중인 AI coding agent의 글로벌 Agent Skill로 안전하게 설치하고 검증해줘.
-```
-
-글로벌 adapter는 다음 경로를 사용합니다.
-
-- Claude Code: `~/.claude/skills/skill-hunter`
-- OpenCode: `~/.config/opencode/skills/skill-hunter`
-- Codex: `~/.agents/skills/skill-hunter`
-- Codex legacy 환경: `${CODEX_HOME:-~/.codex}/skills/skill-hunter`
-
-### 방법 2: Agent Skill을 직접 설치
+### Agent Skill로 직접 설치
 
 전체 Git checkout을 그대로 두면 이후 `git pull`로 업데이트하기 쉽습니다. 아래 명령은
 대상 경로가 아직 없을 때만 실행하세요.
@@ -150,7 +139,7 @@ git clone https://github.com/woobin-the-creator/skill-hunter.git \
 설치 후 agent가 자동으로 새 skill을 감지하지 못하면 해당 agent를 재시작하거나 skill
 목록을 reload하세요.
 
-### 방법 3: CLI만 설치
+### CLI만 설치
 
 Agent Skill 자동 호출이 필요하지 않고 CLI만 사용하려면 격리된 Python 환경 또는
 `pipx`를 권장합니다.
