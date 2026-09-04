@@ -29,7 +29,7 @@ Status values are updated only after observable evidence exists.
 | A21 | Public quality files | README, MIT LICENSE, `.gitignore`, CI workflow, validator | Pass |
 | A22 | Three real repository dry-runs | recorded source, SHA, discovered selection, result | Pass |
 | A23 | Secret/personal-path hygiene | tracked-file scans and staged-diff review | Pass |
-| A24 | Public GitHub publication | public visibility, `main`, remote SHA equality | Pending |
+| A24 | Public GitHub publication | public visibility, `main`, remote SHA equality | Pass |
 
 ## Required fixture cases
 
